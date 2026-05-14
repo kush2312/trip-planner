@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Trip Planner Agent</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@4/marked.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .card { background: white; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+    .itinerary-content h2 { font-size: 1.4rem; font-weight: 600; margin: 1.2rem 0 0.5rem; color: #1e293b; }
+    .itinerary-content h3 { font-size: 1.1rem; font-weight: 600; margin: 1rem 0 0.4rem; color: #334155; border-left: 3px solid #667eea; padding-left: 10px; }
+    .itinerary-content p { margin: 0.4rem 0; color: #475569; line-height: 1.7; }
+    .itinerary-content ul { margin: 0.3rem 0 0.3rem 1.2rem; }
+    .itinerary-content li { color: #475569; margin: 0.25rem 0; line-height: 1.6; }
+    .itinerary-content strong { color: #1e293b; }
+    .itinerary-content table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+    .itinerary-content th { background: #f1f5f9; padding: 8px 12px; text-align: left; font-size: 0.85rem; color: #64748b; }
+    .itinerary-content td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; color: #475569; }
+    .itinerary-content hr { border: none; border-top: 1px solid #e2e8f0; margin: 1rem 0; }
+    select, input { outline: none; }
+    .status-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; padding: 4px 12px; border-radius: 999px; }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50">
+
+  <!-- Header -->
+  <div class="gradient-bg text-white py-10 px-4 text-center">
+    <div class="text-4xl mb-2">🌍</div>
+    <h1 class="text-3xl font-semibold tracking-tight">Trip Planner Agent</h1>
+    <p class="text-purple-200 mt-1 text-sm">Powered by Groq + real-time web search</p>
+  </div>
+
+  <!-- Main -->
+  <div class="max-w-3xl mx-auto px-4 -mt-6 pb-16">
+
+    <!-- Form card -->
+    <div class="card p-6 mb-6" id="form-card">
+      <h2 class="text-base font-semibold text-slate-700 mb-4">Where are you headed?</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="sm:col-span-2">
+          <label class="text-xs font-medium text-slate-500 uppercase tracking-wide">Destination</label>
+          <input id="destination" type="text" placeholder="e.g. Goa, Paris, Bali..."
+            class="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 focus:border-purple-400 transition" />
+        </div>
+        <div>
+          <label class="text-xs font-medium text-slate-500 uppercase tracking-wide">Number of days</label>
+          <input id="days" type="number" min="1" max="14" value="3"
+            class="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 focus:border-purple-400 transition" />
+        </div>
+        <div>
+          <label class="text-xs font-medium text-slate-500 uppercase tracking-wide">Total budget</label>
+          <div class="flex mt-1 gap-2">
+            <select id="currency" class="border border-slate-200 rounded-lg px-2 py-2.5 text-sm bg-white focus:ring-2 focus:ring-purple-300">
+              <option value="₹">₹ INR</option>
+              <option value="$">$ USD</option>
+              <option value="€">€ EUR</option>
+              <option value="£">£ GBP</option>
+            </select>
+            <input id="budget" type="number" placeholder="15000"
+              class="flex-1 border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 focus:border-purple-400 transition" />
+          </div>
+        </div>
+        <div class="sm:col-span-2">
+          <label class="text-xs font-medium text-slate-500 uppercase tracking-wide">Travel style</label>
+          <div class="flex gap-3 mt-2">
+            <button onclick="setStyle('Budget')" id="style-Budget"
+              class="style-btn flex-1 py-2 rounded-lg border text-sm font-medium transition">🎒 Budget</button>
+            <button onclick="setStyle('Comfort')" id="style-Comfort"
+              class="style-btn flex-1 py-2 rounded-lg border text-sm font-medium transition">✈️ Comfort</button>
+            <button onclick="setStyle('Luxury')" id="style-Luxury"
+              class="style-btn flex-1 py-2 rounded-lg border text-sm font-medium transition">💎 Luxury</button>
+          </div>
+        </div>
+      </div>
+      <button onclick="planTrip()"
+        class="mt-5 w-full gradient-bg text-white py-3 rounded-xl font-medium text-sm tracking-wide hover:opacity-90 active:scale-95 transition-all">
+        ✨ Plan my trip
+      </button>
+    </div>
+
+    <!-- Output card -->
+    <div class="card p-6 hidden" id="output-card">
+      <div class="flex items-center justify-between mb-4">
+        <div id="status-bar" class="status-pill bg-purple-50 text-purple-600">
+          <span class="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></span>
+          <span id="status-text">Agent is thinking...</span>
+        </div>
+        <button onclick="resetForm()" class="text-xs text-slate-400 hover:text-slate-600 transition">← New trip</button>
+      </div>
+      <div id="search-log" class="text-xs text-slate-400 mb-4 space-y-1"></div>
+      <div id="itinerary" class="itinerary-content prose max-w-none text-sm leading-relaxed"></div>
+
+      <!-- Debug panel — remove after confirming it works -->
+      <details class="mt-4">
+        <summary class="text-xs text-slate-400 cursor-pointer">Debug: raw stream</summary>
+        <pre id="debug-raw" class="text-xs text-slate-400 whitespace-pre-wrap mt-2 max-h-48 overflow-auto bg-slate-50 p-2 rounded"></pre>
+      </details>
+    </div>
+
+  </div>
+
+<script>
+  let selectedStyle = 'Comfort';
+
+  function setStyle(s) {
+    selectedStyle = s;
+    document.querySelectorAll('.style-btn').forEach(b => {
+      b.classList.remove('bg-purple-600', 'text-white', 'border-purple-600');
+      b.classList.add('border-slate-200', 'text-slate-600');
+    });
+    const active = document.getElementById('style-' + s);
+    active.classList.add('bg-purple-600', 'text-white', 'border-purple-600');
+    active.classList.remove('border-slate-200', 'text-slate-600');
+  }
+  setStyle('Comfort');
+
+  function resetForm() {
+    document.getElementById('output-card').classList.add('hidden');
+    document.getElementById('form-card').classList.remove('hidden');
+    document.getElementById('itinerary').innerHTML = '';
+    document.getElementById('search-log').innerHTML = '';
+    document.getElementById('debug-raw').textContent = '';
+  }
+
+  async function planTrip() {
+    const destination = document.getElementById('destination').value.trim();
+    const days = parseInt(document.getElementById('days').value);
+    const budget = document.getElementById('budget').value.trim();
+    const currency = document.getElementById('currency').value;
+
+    if (!destination || !budget) { alert('Please fill in destination and budget.'); return; }
+
+    document.getElementById('form-card').classList.add('hidden');
+    const outputCard = document.getElementById('output-card');
+    outputCard.classList.remove('hidden');
+    outputCard.scrollIntoView({ behavior: 'smooth' });
+
+    const statusText  = document.getElementById('status-text');
+    const searchLog   = document.getElementById('search-log');
+    const itineraryEl = document.getElementById('itinerary');
+    const statusBar   = document.getElementById('status-bar');
+    const debugRaw    = document.getElementById('debug-raw');
+
+    statusText.textContent = 'Agent is researching your trip...';
+    searchLog.innerHTML = '';
+    itineraryEl.innerHTML = '';
+    debugRaw.textContent = '';
+
+    let rawText = '';
+    let allTokens = [];
+
+    try {
+      const res = await fetch('/plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ destination, days, budget, currency, style: selectedStyle })
+      });
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let leftover = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          console.log('[STREAM] reader done');
+          break;
+        }
+
+        const chunk = decoder.decode(value, { stream: true });
+        console.log('[CHUNK]', JSON.stringify(chunk.slice(0, 200)));
+
+        const text = leftover + chunk;
+        const lines = text.split('\n');
+        leftover = lines.pop();
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6);
+
+          if (data === '[DONE]') {
+            console.log('[DONE] received. rawText length:', rawText.length);
+            console.log('[DONE] rawText preview:', rawText.slice(0, 300));
+            statusBar.className = 'status-pill bg-green-50 text-green-600';
+            statusText.textContent = '✓ Itinerary ready';
+            document.querySelector('.animate-pulse')?.classList.remove('animate-pulse');
+
+            // Final render attempt directly from rawText
+            const startIdx = rawText.indexOf('---ITINERARY_START---');
+            const endIdx   = rawText.indexOf('---ITINERARY_END---');
+            console.log('[DONE] startIdx:', startIdx, 'endIdx:', endIdx);
+
+            if (startIdx !== -1) {
+              const content = endIdx !== -1
+                ? rawText.slice(startIdx + '---ITINERARY_START---'.length, endIdx)
+                : rawText.slice(startIdx + '---ITINERARY_START---'.length);
+              console.log('[DONE] Rendering content, length:', content.length);
+              itineraryEl.innerHTML = marked.parse(content.trim());
+            } else {
+              // Fallback: show everything as-is
+              console.warn('[DONE] No ITINERARY_START marker found — showing raw text');
+              itineraryEl.innerHTML = '<pre style="white-space:pre-wrap;font-size:13px">' + rawText + '</pre>';
+            }
+            break;
+          }
+
+          // Unescape newlines
+          const token = data.replace(/\\n/g, '\n');
+          allTokens.push(token);
+          rawText += token;
+          debugRaw.textContent = rawText.slice(-500); // show last 500 chars
+
+          if (token.includes('🔍 Searching:')) {
+            const match = token.match(/\*(.+?)\*/);
+            if (match) {
+              const div = document.createElement('div');
+              div.innerHTML = `<span class="text-purple-400">🔍</span> Searching: <em>${match[1]}</em>`;
+              searchLog.appendChild(div);
+            }
+            statusText.textContent = 'Searching the web...';
+            continue;
+          }
+
+          if (token.includes('✅ Got search results')) {
+            statusText.textContent = 'Processing results...';
+            continue;
+          }
+        }
+      }
+
+    } catch (err) {
+      console.error('[ERROR]', err);
+      statusBar.className = 'status-pill bg-red-50 text-red-500';
+      statusText.textContent = '❌ Error occurred';
+      itineraryEl.innerHTML = `<p class="text-red-500">Error: ${err.message}</p>`;
+    }
+  }
+</script>
+</body>
+</html>

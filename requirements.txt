@@ -1,0 +1,18 @@
+# Pinned versions — tested and working together (May 2026)
+ 
+# Web framework
+fastapi==0.115.0
+uvicorn==0.30.6
+ 
+# LangChain core — stay on 0.3.x, NOT 1.x (breaking changes)
+langchain==0.3.25
+langchain-community==0.3.25
+ 
+# Gemini integration — stay on 2.x, NOT 3.x/4.x (breaking changes)
+langchain-google-genai==2.1.4
+ 
+# DuckDuckGo — stay on 6.x, NOT 7.x/8.x (DDGS API changed)
+duckduckgo-search==6.3.7
+ 
+# Utilities
+python-dotenv==1.0.1
